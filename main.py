@@ -1,7 +1,11 @@
+import sys
+
 from matplotlib import pyplot as plt
 import time
+import sys
 import math
 import os
+import tqdm
 
 # Every operation is a dict with items "id", "type", and "time"
 x = {}
@@ -58,47 +62,81 @@ def process_line(line):
 def parse_input(address):
     size = (os.path.getsize(address)) // 152.3
     i = 0
+    prog = 0
+    fin = False
+    dur = False
     start = time.time()
+    bar = tqdm.tqdm(total=10000)
     with open(address, "r") as f:
         for line in f:
             process_line(line)
             i += 1
-            if i % (size // 10000) == 0:
-                print(round(i / (size // 100), 2))
-            # if i == 100000:
-            #     break
-    print("Time taken: " + str(time.time() - start))
+            if size > 10000:
+                if i % (size // 10000) == 0:
+                    if prog < 100:
+                        # time.sleep(0.1)
+                        bar.update(1)
+                    prog += 0.01
+                if prog > 100.5 and not fin:
+                    print("\nFinishing up")
+                    fin = True
+                if prog > 115 and not dur:
+                    print("\nTaking longer than expected")
+                    print("Check for IRQ or block commands")
+                    dur = True
+        while prog < 100:
+            prog += 0.01
+            bar.update(1)
+    bar.close()
+    time_taken = time.time() - start
+    print("Time taken: " + str(round(time_taken, 2)) + " s")
+    print("Plotting in progress")
+    print("Expected duration: " + str(round(time_taken / 1.5, 2)) + " s")
 
 
-parse_input("Input_0.log")
+def main():
+    input_file = sys.argv[1]
+    print(input_file)
+    parse_input(input_file)
 
-start = time.time()
+    start = time.time()
 
-for nvme in x:
-    colors = ["lightblue", "red", "green", "orange", "black"]
-    labels = ["read", "write", "trim", "admin", "others"]
-    fig, ax = plt.subplots()
-    for i in range(0, 5):
-        ax.scatter(x[nvme][i], y[nvme][i], s=2, c=colors[i], label=labels[i])
-    ax.set_title(nvme[:-1])
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Latency (in ms)")
-    ax.tick_params(axis='x', which='both', bottom=False, top=False,
-                   labelbottom=False)
-    leg = ax.legend(loc='upper left')
-    for i in range(0, 5):
-        leg.legendHandles[i]._sizes = [30]
-    plt.savefig("Output.png")
-    plt.show()
+    for nvme in x:
+        colors = ["lightblue", "red", "green", "orange", "black"]
+        labels = ["read", "write", "trim", "admin", "others"]
+        fig, ax = plt.subplots()
+        for i in range(0, 5):
+            ax.scatter(x[nvme][i], y[nvme][i], s=2, c=colors[i], label=labels[i])
+        ax.set_title(nvme[:-1])
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Latency (in ms)")
+        ax.tick_params(axis='x', which='both', bottom=False, top=False,
+                       labelbottom=False)
+        leg = ax.legend(loc='upper left')
+        for i in range(0, 5):
+            leg.legendHandles[i]._sizes = [30]
+        plt.savefig("Output.png")
+        plt.show()
 
-print("Time taken for plotting: " + str(time.time() - start))
+    print("Time taken for plotting: " + str(round(time.time() - start, 2))
+          + " s")
+    print()
 
-for nvme in x:
-    print(nvme)
-    print("\n")
-    for i in range(0, 5):
-        if len(y[nvme][i]) > 0:
-            print(len(y[nvme][i]))
-            print(max(y[nvme][i]))
-            print(sum(y[nvme][i]) / len(y[nvme][i]))
-            print()
+    for nvme in x:
+        print(nvme)
+        labels = ["read", "write", "trim", "admin", "others"]
+        for i in range(0, 5):
+            if len(y[nvme][i]) > 0:
+                print("Maximum " + labels[i] + " latency: "
+                      + str(round(max(y[nvme][i]), 3)) + " ms")
+                print("Average " + labels[i] + " latency: " +
+                      str(round(sum(y[nvme][i]) / len(y[nvme][i]), 3))
+                      + " ms")
+                print("Minimum " + labels[i] + " latency: "
+                      + str(round(min(y[nvme][i]), 3)) + " ms")
+                print("Number of " + labels[i] + " commands: " +
+                      str(len(y[nvme][i])))
+                print()
+
+
+main()
