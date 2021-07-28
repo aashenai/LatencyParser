@@ -3,7 +3,7 @@ import sys
 from matplotlib import pyplot as plt
 import time
 import sys
-import math
+import mmap
 import os
 import tqdm
 
@@ -68,13 +68,16 @@ def parse_input(address):
     start = time.time()
     bar = tqdm.tqdm(total=10000)
     with open(address, "r") as f:
-        for line in f:
+        m = mmap.mmap(f.fileno(), 0, access=mmap.ACCESS_READ)
+        while True:
+            line = m.readline().decode("utf-8")
+            if line == '':
+                break
             process_line(line)
             i += 1
             if size > 10000:
                 if i % (size // 10000) == 0:
                     if prog < 100:
-                        # time.sleep(0.1)
                         bar.update(1)
                     prog += 0.01
                 if prog > 100.5 and not fin:
