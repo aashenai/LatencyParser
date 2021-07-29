@@ -34,6 +34,8 @@ def process_line(line):
                 qid = int(part.split('=')[1][:-1])
             if "cmdid" in part:
                 cmdid = int(part.split('=')[1][:-1])
+            if qid != 0 and cmdid != 0:
+                break
         if cmd_type == 0:
             if nvme not in addresses:
                 addresses[nvme] = {}
