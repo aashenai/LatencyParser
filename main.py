@@ -1,5 +1,5 @@
 import sys
-
+import re
 from matplotlib import pyplot as plt
 import time
 import sys
@@ -11,7 +11,9 @@ import tqdm
 x = {}
 y = {}
 current_list = {}
+lines = {}
 addresses = {}
+mylines = []
 
 
 def process_line(line):
@@ -35,6 +37,7 @@ def process_line(line):
         if cmd_type == 0:
             if nvme not in addresses:
                 addresses[nvme] = {}
+                lines[nvme] = {}
             rw = 4
             if "nvme_cmd_read" in line:
                 rw = 0
@@ -45,6 +48,7 @@ def process_line(line):
             elif "nvme_admin_identify" in line:
                 rw = 3
             addresses[nvme][(qid, cmdid)] = (timestamp, rw)
+            lines[nvme][(qid, cmdid)] = line
         elif cmd_type == 1:
             if nvme not in x:
                 x[nvme] = [[], [], [], [], []]
@@ -55,6 +59,9 @@ def process_line(line):
                 x[nvme][rw].append(start_time)
                 latency = (timestamp - start_time) * 1000
                 y[nvme][rw].append(latency)
+                if latency > 10 and rw <= 1:
+                    mylines.append(process_big_latency("0.010", round(latency / 1000, 6), qid, cmdid,
+                                                       lines[nvme][(qid, cmdid)], start_time, timestamp))
             except KeyError:
                 return
 
@@ -79,7 +86,6 @@ def parse_input(address):
                 if i % (size // 10000) == 0:
                     if prog < 100:
                         bar.update(1)
-                    prog += 0.01
                 if prog > 100.5 and not fin:
                     print("\nFinishing up")
                     fin = True
@@ -91,14 +97,27 @@ def parse_input(address):
             prog += 0.01
             bar.update(1)
     bar.close()
+    print()
+    for line in mylines:
+        print(line)
+    print()
     time_taken = time.time() - start
     print("Time taken: " + str(round(time_taken, 2)) + " s")
-    print("Plotting in progress")
-    print("Expected duration: " + str(round(time_taken / 1.5, 2)) + " s")
+    print("Plotting has started. Expected duration: " + str(round(time_taken / 1.5, 2)) + " s")
 
 
-def main():
-    input_file = sys.argv[1]
+def process_big_latency(limit, latency, qid, cmdid, line, start_time, end_time):
+    r1 = re.findall("slba=\w+", line)
+    r2 = re.findall("len=\w+", line)
+    lba = r1[0].split('=')[1]
+    length = r2[0].split('=')[1]
+    st = "latency > " + str(limit) + " " + str(latency) + " qid=" + str(qid) + ", cmdid=" + str(cmdid) + ", " + \
+         "\033[1m" + lba + "\033[0m" + ", " + length + ", " + str(start_time) + ", " + str(end_time) + ", " + \
+         str(latency)
+    return st
+
+
+def main(input_file):
     print(input_file)
     parse_input(input_file)
 
@@ -142,4 +161,4 @@ def main():
                 print()
 
 
-main()
+main(sys.argv[1])
