@@ -2,6 +2,7 @@ import sys
 import re
 from matplotlib import pyplot as plt
 import time
+import sys
 import mmap
 import os
 import tqdm
@@ -18,7 +19,12 @@ mylines = []
 def process_line(line):
     if line[0] != "#":
         parts = line.split()
-        timestamp = float(parts[3][:-1])
+        try:
+            timestamp = float(parts[3][:-1])
+        except ValueError:
+            return
+        except IndexError:
+            return
         if parts[4] == "nvme_setup_cmd:":
             cmd_type = 0
         elif parts[4] == "nvme_complete_rq:":
@@ -29,12 +35,15 @@ def process_line(line):
         qid = 0
         cmdid = 0
         for part in parts:
-            if "qid" in part:
-                qid = int(part.split('=')[1][:-1])
-            if "cmdid" in part:
-                cmdid = int(part.split('=')[1][:-1])
-            if qid != 0 and cmdid != 0:
-                break
+            try:
+                if "qid" in part:
+                    qid = int(part.split('=')[1][:-1])
+                if "cmdid" in part:
+                    cmdid = int(part.split('=')[1][:-1])
+                if qid != 0 and cmdid != 0:
+                    break
+            except IndexError:
+                return
         if cmd_type == 0:
             if nvme not in addresses:
                 addresses[nvme] = {}
@@ -60,8 +69,11 @@ def process_line(line):
                 x[nvme][rw].append(start_time)
                 latency = (timestamp - start_time) * 1000
                 y[nvme][rw].append(latency)
-                if latency > 10 and rw <= 1:
-                    mylines.append(process_big_latency("0.010", round(latency / 1000, 6), qid, cmdid,
+                threshold = 10
+                if len(sys.argv) > 2:
+                    threshold = float(sys.argv[2])
+                if latency > threshold and rw <= 1:
+                    mylines.append(process_big_latency(str(threshold), round(latency / 1000, 6), qid, cmdid,
                                                        lines[nvme][(qid, cmdid)], start_time, timestamp))
             except KeyError:
                 return
@@ -104,7 +116,7 @@ def parse_input(address):
     print()
     time_taken = time.time() - start
     print("Time taken: " + str(round(time_taken, 2)) + " s")
-    print("Plotting has started. Expected duration: " + str(round(time_taken / 1.5, 2)) + " s")
+    print("Plotting has started. Expected duration: " + str(round(time_taken / 7, 2)) + " s")
 
 
 def process_big_latency(limit, latency, qid, cmdid, line, start_time, end_time):
@@ -125,18 +137,18 @@ def main(input_file):
     start = time.time()
 
     for nvme in x:
-        colors = ["lightblue", "red", "green", "orange", "black"]
-        labels = ["read", "write", "trim", "admin", "others"]
+        colors = ["bo", "ro", "go"]
+        labels = ["read", "write", "trim"]
         fig, ax = plt.subplots()
-        for i in range(0, 5):
-            ax.scatter(x[nvme][i], y[nvme][i], s=2, c=colors[i], label=labels[i])
+        for i in range(0, 3):
+            ax.plot(x[nvme][i], y[nvme][i], colors[i], markersize=1, label=labels[i])
         ax.set_title(nvme[:-1])
         ax.set_xlabel("Time")
         ax.set_ylabel("Latency (in ms)")
         ax.tick_params(axis='x', which='both', bottom=False, top=False,
                        labelbottom=False)
         leg = ax.legend(loc='upper left')
-        for i in range(0, 5):
+        for i in range(0, 3):
             leg.legendHandles[i]._sizes = [30]
         plt.savefig("Output.png")
         plt.show()
@@ -147,8 +159,8 @@ def main(input_file):
 
     for nvme in x:
         print(nvme)
-        labels = ["read", "write", "trim", "admin", "others"]
-        for i in range(0, 5):
+        labels = ["read", "write", "trim"]
+        for i in range(0, 3):
             if len(y[nvme][i]) > 0:
                 print("Maximum " + labels[i] + " latency: "
                       + str(round(max(y[nvme][i]), 3)) + " ms")
