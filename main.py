@@ -2,7 +2,6 @@ import sys
 import re
 from matplotlib import pyplot as plt
 import time
-import sys
 import mmap
 import os
 import tqdm
