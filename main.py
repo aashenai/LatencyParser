@@ -2,6 +2,7 @@ import sys
 import re
 from matplotlib import pyplot as plt
 import time
+import sys
 import mmap
 import os
 import tqdm
@@ -123,8 +124,8 @@ def process_big_latency(limit, latency, qid, cmdid, line, start_time, end_time):
     r2 = re.findall("len=\w+", line)
     lba = r1[0].split('=')[1]
     length = r2[0].split('=')[1]
-    st = "latency > " + str(limit) + " " + str(latency) + " qid=" + str(qid) + ", cmdid=" + str(cmdid) + ", " + \
-         "\033[1m" + lba + "\033[0m" + ", " + length + ", " + str(start_time) + ", " + str(end_time) + ", " + \
+    st = "latency > " + str(limit) + "ms " + str(latency) + " qid=" + str(qid) + ", cmdid=" + str(cmdid) + ", " + \
+         "\033[1m" + lba + " (" + hex(int(lba)) + ")" + "\033[0m" + ", " + length + ", " + str(start_time) + ", " + str(end_time) + ", " + \
          str(latency)
     return st
 
