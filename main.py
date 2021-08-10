@@ -99,6 +99,7 @@ def parse_input(address):
                 if i % (size // 10000) == 0:
                     if prog < 100:
                         bar.update(1)
+                        prog += 0.01
                 if prog > 100.5 and not fin:
                     print("\nFinishing up")
                     fin = True
@@ -158,10 +159,11 @@ def main(input_file):
     print()
 
     for nvme in x:
-        print(nvme)
         labels = ["read", "write", "trim"]
         for i in range(0, 3):
             if len(y[nvme][i]) > 0:
+                if i == 0:
+                    print(nvme)
                 print("Maximum " + labels[i] + " latency: "
                       + str(round(max(y[nvme][i]), 3)) + " ms")
                 print("Average " + labels[i] + " latency: " +
